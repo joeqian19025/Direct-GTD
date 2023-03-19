@@ -12,10 +12,6 @@ import copy
 import pandas as pd
 import math
 
-# set seed for reproducibility
-SEED = 0
-np.random.seed(SEED)
-
 # all states: state 0-5 are upper states
 STATES = np.arange(0, 7)
 # state 6 is lower state
@@ -147,7 +143,8 @@ def compute_RMSPBE(theta):
 f_gap = lambda x: math.ceil(math.log(x+1)**2)
 
 # Experiment of semi-grad TD, TDC, Direct GTD.
-def experiments():
+def experiments(seed):
+    np.random.seed(seed)
     # Initialize the theta
     theta = np.ones(FEATURE_SIZE)
     theta[6] = 10
@@ -164,10 +161,7 @@ def experiments():
 
     steps = 50000
     DGTD_step = 0
-    logs = pd.DataFrame(columns=[
-        'TD_RMSVE', 'TDC_RMSVE', 'DGTD_RMSVE', 
-        'TD_RMSPBE', 'TDC_RMSPBE', 'DGTD_RMSPBE'
-    ])
+    logs = pd.DataFrame()
     state = np.random.choice(STATES)
     history = [state]
 
@@ -196,9 +190,15 @@ def experiments():
             'DGTD_RMSVE': compute_RMSVE(theta_DGTD), 
             'DGTD_RMSPBE': compute_RMSPBE(theta_DGTD),
         }
+        for i in range(FEATURE_SIZE):
+            log[f"TD_theta{i}"] = theta_TD[i]
+            log[f"TDC_theta{i}"] = theta_TDC[i]
+            log[f"DGTD_theta{i}"] = theta_DGTD[i]
         logs = logs.append(log, ignore_index=True)
     # save the logs
-    logs.to_csv(f'./logs_stepsize={alpha_DGTD}_seed[{SEED}].csv')
+    logs.to_csv(f'./logs/logs_seed[{seed}].csv')
 
 if __name__ == '__main__':
-    experiments()
+    # Perform the experiment on with 10 different random seeds
+    for seed in range(10):
+        experiments(seed)
