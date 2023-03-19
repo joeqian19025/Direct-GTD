@@ -160,9 +160,9 @@ def experiments():
     alpha_TD = 0.01
     alpha_TDC = 0.005
     beta_TDC = 0.05
-    alpha_DGTD = 0.0005
+    alpha_DGTD = 0.001
 
-    steps = 1000
+    steps = 10000
     DGTD_step = 0
     logs = pd.DataFrame(columns=[
         'TD_RMSVE', 'TDC_RMSVE', 'DGTD_RMSVE', 
@@ -198,7 +198,7 @@ def experiments():
         }
         logs = logs.append(log, ignore_index=True)
     # save the logs
-    logs.to_csv(f'./logs_approximated_seed[{SEED}].csv')
+    logs.to_csv(f'./logs_stepsize={alpha_DGTD}_seed[{SEED}].csv')
 
 if __name__ == '__main__':
     experiments()
