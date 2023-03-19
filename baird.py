@@ -162,7 +162,7 @@ def experiments():
     beta_TDC = 0.05
     alpha_DGTD = 0.001
 
-    steps = 10000
+    steps = 50000
     DGTD_step = 0
     logs = pd.DataFrame(columns=[
         'TD_RMSVE', 'TDC_RMSVE', 'DGTD_RMSVE', 
