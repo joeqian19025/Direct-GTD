@@ -81,6 +81,44 @@ def semi_gradient_off_policy_TD(state, action, next_state, theta, alpha):
     # derivatives happen to be the same matrix due to the linearity
     theta += FEATURES[state, :] * delta
 
+# gradient temporal difference learning
+# @state: state S_t
+# @action: action A_t
+# @next_state: state S_{t+1}
+# @theta: weight of each component of the feature vector
+# @weight: auxiliary trace for gradient correction
+# @alpha: step size of @theta
+# @beta: step size of @weight
+def GTD(state, action, next_state, theta, weight, alpha, beta):
+    # get the importance ratio
+    if action == DASHED:
+        rho = 0.0
+    else:
+        rho = 1.0 / BEHAVIOR_SOLID_PROBABILITY
+    delta = REWARD + DISCOUNT * np.dot(FEATURES[next_state, :], theta) - \
+            np.dot(FEATURES[state, :], theta)
+    theta += alpha * rho * (FEATURES[state, :] - DISCOUNT * FEATURES[next_state, :]) * np.dot(FEATURES[state, :], weight)
+    weight += beta * rho * (delta * FEATURES[state, :] - weight)
+
+# gradient temporal difference learning 2
+# @state: state S_t
+# @action: action A_t
+# @next_state: state S_{t+1}
+# @theta: weight of each component of the feature vector
+# @weight: auxiliary trace for gradient correction
+# @alpha: step size of @theta
+# @beta: step size of @weight
+def GTD2(state, action, next_state, theta, weight, alpha, beta):
+    # get the importance ratio
+    if action == DASHED:
+        rho = 0.0
+    else:
+        rho = 1.0 / BEHAVIOR_SOLID_PROBABILITY
+    delta = REWARD + DISCOUNT * np.dot(FEATURES[next_state, :], theta) - \
+            np.dot(FEATURES[state, :], theta)
+    theta += alpha * rho * (FEATURES[state, :] - DISCOUNT * FEATURES[next_state, :]) * np.dot(FEATURES[state, :], weight)
+    weight += beta * rho * (delta - np.dot(FEATURES[state, :], weight)) * FEATURES[state, :]
+
 # temporal difference with gradient correction
 # @state: state S_t
 # @action: action A_t
@@ -142,21 +180,25 @@ def compute_RMSPBE(theta):
 
 f_gap = lambda x: math.ceil(math.log(x+1)**2)
 
-# Experiment of semi-grad TD, TDC, Direct GTD.
+# Experiment of semi-grad TD, GTD, GTD2, TDC, Direct GTD.
 def experiments(seed):
     np.random.seed(seed)
     # Initialize the theta
     theta = np.ones(FEATURE_SIZE)
     theta[6] = 10
     theta_TD = copy.deepcopy(theta)
+    theta_GTD = copy.deepcopy(theta)
+    weight_GTD = np.zeros(FEATURE_SIZE)
+    theta_GTD2 = copy.deepcopy(theta)
+    weight_GTD2 = np.zeros(FEATURE_SIZE)
     theta_TDC = copy.deepcopy(theta)
     weight_TDC = np.zeros(FEATURE_SIZE)
     theta_DGTD = copy.deepcopy(theta)
 
     # Stepsize configurations for each algorithm
     alpha_TD = 0.01
-    alpha_TDC = 0.005
-    beta_TDC = 0.05
+    alpha_GTD = 0.005
+    beta_GTD = 0.05
     alpha_DGTD = 0.001
 
     steps = 50000
@@ -173,7 +215,9 @@ def experiments(seed):
         history.append(next_state)
         # update the weights with each algorithms respectively
         semi_gradient_off_policy_TD(state, action, next_state, theta_TD, alpha_TD)
-        TDC(state, action, next_state, theta_TDC, weight_TDC, alpha_TDC, beta_TDC)
+        GTD(state, action, next_state, theta_GTD, weight_GTD, alpha_GTD, beta_GTD)
+        GTD2(state, action, next_state, theta_GTD2, weight_GTD2, alpha_GTD, beta_GTD)
+        TDC(state, action, next_state, theta_TDC, weight_TDC, alpha_GTD, beta_GTD)
         while step >= DGTD_step + f_gap(DGTD_step):
             direct_GTD(history[2*DGTD_step], history[2*DGTD_step+1], history[2*DGTD_step+2],
                        history[2*(DGTD_step+f_gap(DGTD_step))], history[2*(DGTD_step+f_gap(DGTD_step))+1],
@@ -184,7 +228,11 @@ def experiments(seed):
         # log corresponding errors for each algorithm
         log = {
             'TD_RMSVE': compute_RMSVE(theta_TD), 
-            'TD_RMSPBE': compute_RMSPBE(theta_TD), 
+            'TD_RMSPBE': compute_RMSPBE(theta_TD),
+            'GTD_RMSVE': compute_RMSVE(theta_GTD), 
+            'GTD_RMSPBE': compute_RMSPBE(theta_GTD),
+            'GTD2_RMSVE': compute_RMSVE(theta_GTD2), 
+            'GTD2_RMSPBE': compute_RMSPBE(theta_GTD2),
             'TDC_RMSVE': compute_RMSVE(theta_TDC), 
             'TDC_RMSPBE': compute_RMSPBE(theta_TDC), 
             'DGTD_RMSVE': compute_RMSVE(theta_DGTD), 
@@ -192,13 +240,21 @@ def experiments(seed):
         }
         for i in range(FEATURE_SIZE):
             log[f"TD_theta{i}"] = theta_TD[i]
+            log[f"GTD_theta{i}"] = theta_GTD[i]
+            log[f"GTD2_theta{i}"] = theta_GTD2[i]
             log[f"TDC_theta{i}"] = theta_TDC[i]
             log[f"DGTD_theta{i}"] = theta_DGTD[i]
         logs = logs.append(log, ignore_index=True)
     # save the logs
     logs.to_csv(f'./logs/logs_seed[{seed}].csv')
 
+
+def expected(seed):
+    np.random.seed(seed)
+
+
 if __name__ == '__main__':
     # Perform the experiment on with 10 different random seeds
     for seed in range(10):
         experiments(seed)
+        expected(seed)
